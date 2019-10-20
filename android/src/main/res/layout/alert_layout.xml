@@ -15,10 +15,10 @@
             android:id="@+id/card_view"
             android:layout_gravity="center"
             android:layout_width="150dp"
-            card_view:cardElevation="2dp"
-            card_view:cardBackgroundColor="#5F5F5F"
+            card_view:cardElevation="5dp"
+            card_view:cardBackgroundColor="#444242"
             card_view:cardCornerRadius="10dp"
-            card_view:contentPadding="5dp">
+            card_view:contentPadding="2dp">
 
         <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"

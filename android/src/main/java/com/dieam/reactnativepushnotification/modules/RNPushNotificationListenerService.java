@@ -145,7 +145,7 @@ public class RNPushNotificationListenerService extends FirebaseMessagingService 
 
         //Specify the view position
         params.gravity = Gravity.TOP | Gravity.LEFT;        //Initially view will be added to top-left corner
-        params.x = 0;
+        params.x = 20;
         params.y = 100;
 
 
