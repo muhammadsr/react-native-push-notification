@@ -1,35 +1,57 @@
 package com.dieam.reactnativepushnotification.modules;
 
-import java.util.Map;
-import com.google.firebase.messaging.FirebaseMessagingService;
-import com.google.firebase.messaging.RemoteMessage;
-
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningAppProcessInfo;
 import android.app.Application;
+import android.content.Intent;
+import android.graphics.PixelFormat;
+import android.graphics.Point;
+import android.media.MediaPlayer;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.util.Log;
+import android.view.Display;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewTreeObserver;
+import android.view.WindowManager;
+import android.widget.RelativeLayout;
 
+import com.andremion.counterfab.CounterFab;
+import com.dieam.reactnativepushnotification.R;
 import com.dieam.reactnativepushnotification.helpers.ApplicationBadgeHelper;
 import com.facebook.react.ReactApplication;
 import com.facebook.react.ReactInstanceManager;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContext;
+import com.google.firebase.messaging.FirebaseMessagingService;
+import com.google.firebase.messaging.RemoteMessage;
 
 import org.json.JSONObject;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import static com.dieam.reactnativepushnotification.modules.RNPushNotification.LOG_TAG;
 
 public class RNPushNotificationListenerService extends FirebaseMessagingService {
+    private WindowManager mWindowManager;
+    private View mOverlayView;
+    private MediaPlayer mp;
 
     @Override
     public void onMessageReceived(RemoteMessage message) {
-        String from = message.getFrom();
+        Log.i("PN", "onMessageReceived");
+        if ((Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                || Settings.canDrawOverlays(this)) && !isApplicationInForeground() ) {
+            showOverlay();
+            playSound();
+        }
         RemoteMessage.Notification remoteNotification = message.getNotification();
 
         final Bundle bundle = new Bundle();
@@ -100,6 +122,80 @@ public class RNPushNotificationListenerService extends FirebaseMessagingService 
         });
     }
 
+    public void showOverlay() {
+        mOverlayView = LayoutInflater.from(this).inflate(R.layout.alert_layout, null);
+
+        WindowManager.LayoutParams temp = null;
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            temp = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.TYPE_PHONE,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSLUCENT);
+        }else{
+            temp = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSLUCENT);
+        }
+
+        final WindowManager.LayoutParams params = temp;
+
+        //Specify the view position
+        params.gravity = Gravity.TOP | Gravity.LEFT;        //Initially view will be added to top-left corner
+        params.x = 0;
+        params.y = 100;
+
+
+        mWindowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        new Handler(Looper.getMainLooper()).post(new Runnable() {
+            @Override
+            public void run() {
+                mWindowManager.addView(mOverlayView, params);
+            }
+        });
+
+        Display display = mWindowManager.getDefaultDisplay();
+        final Point size = new Point();
+        display.getSize(size);
+
+        mOverlayView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String activityToStart = "com.safary.MainActivity";
+                try {
+                    Class<?> c = Class.forName(activityToStart);
+                    Intent intent = new Intent(getApplicationContext(), c);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent);
+                    mWindowManager.removeView(mOverlayView);
+                    stopPlaySound();
+                } catch (ClassNotFoundException ignored) {
+                }
+            }
+        });
+
+    }
+
+    private void playSound() {
+        if (mp == null) {
+            mp = MediaPlayer.create(this, R.raw.alert1);
+        }
+        mp.setLooping(true);
+        mp.start();
+    }
+
+    private void stopPlaySound() {
+        if (mp != null) {
+            mp.stop();
+            mp.release();
+        }
+    }
+
     private JSONObject getPushData(String dataString) {
         try {
             return new JSONObject(dataString);
@@ -134,6 +230,8 @@ public class RNPushNotificationListenerService extends FirebaseMessagingService 
         RNPushNotificationHelper pushNotificationHelper = new RNPushNotificationHelper(applicationContext);
         pushNotificationHelper.sendToNotificationCentre(bundle);
     }
+
+
 
     private boolean isApplicationInForeground() {
         ActivityManager activityManager = (ActivityManager) this.getSystemService(ACTIVITY_SERVICE);
