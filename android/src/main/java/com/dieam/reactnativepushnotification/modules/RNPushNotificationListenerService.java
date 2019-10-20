@@ -20,8 +20,6 @@ import android.view.View;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.widget.RelativeLayout;
-
-import com.andremion.counterfab.CounterFab;
 import com.dieam.reactnativepushnotification.R;
 import com.dieam.reactnativepushnotification.helpers.ApplicationBadgeHelper;
 import com.facebook.react.ReactApplication;
