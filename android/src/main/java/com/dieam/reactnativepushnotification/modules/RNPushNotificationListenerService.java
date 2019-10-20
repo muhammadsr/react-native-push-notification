@@ -191,6 +191,7 @@ public class RNPushNotificationListenerService extends FirebaseMessagingService 
         if (mp != null) {
             mp.stop();
             mp.release();
+            mp = null;
         }
     }
 
