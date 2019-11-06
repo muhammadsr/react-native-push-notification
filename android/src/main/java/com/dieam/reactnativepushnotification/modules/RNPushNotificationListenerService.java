@@ -4,6 +4,8 @@ import android.app.ActivityManager;
 import android.app.ActivityManager.RunningAppProcessInfo;
 import android.app.Application;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.media.MediaPlayer;
@@ -28,6 +30,7 @@ import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContext;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
+import com.mixpanel.android.mpmetrics.MixpanelAPI;
 
 import org.json.JSONObject;
 
@@ -45,12 +48,15 @@ public class RNPushNotificationListenerService extends FirebaseMessagingService 
     @Override
     public void onMessageReceived(RemoteMessage message) {
         Log.i("PN", "onMessageReceived");
+        boolean showOverlay = false;
         if ((Build.VERSION.SDK_INT < Build.VERSION_CODES.M
                 || Settings.canDrawOverlays(this)) && !isApplicationInForeground() ) {
             showOverlay();
             playSound();
+            showOverlay = true;
         }
         RemoteMessage.Notification remoteNotification = message.getNotification();
+
 
         final Bundle bundle = new Bundle();
         // Putting it from remoteNotification first so it can be overriden if message
@@ -64,6 +70,10 @@ public class RNPushNotificationListenerService extends FirebaseMessagingService 
         for(Map.Entry<String, String> entry : message.getData().entrySet()) {
             bundle.putString(entry.getKey(), entry.getValue());
         }
+
+        // Log event
+        logAnalytics(bundle, showOverlay);
+
         JSONObject data = getPushData(bundle.getString("data"));
         // Copy `twi_body` to `message` to support Twilio
         if (bundle.containsKey("twi_body")) {
@@ -119,6 +129,31 @@ public class RNPushNotificationListenerService extends FirebaseMessagingService 
             }
         });
     }
+
+    public void logAnalytics(Bundle notificationBundle, boolean showOverlay) {
+        try {
+            ApplicationInfo ai = getPackageManager().getApplicationInfo(getPackageName(),     PackageManager.GET_META_DATA);
+            Bundle bundle = ai.metaData;
+            String mixPanelKey = bundle.getString("mixpanel_key");
+
+            String distinctId = notificationBundle.getString("eventsDistinctId");
+
+            try {
+                MixpanelAPI mixpanel = MixpanelAPI.getInstance(this, mixPanelKey);
+                mixpanel.identify(distinctId);
+                JSONObject jsonObject = new JSONObject();
+                jsonObject.put("$show_overlay", showOverlay);
+                jsonObject.put("$app_in_foreground", isApplicationInForeground());
+                mixpanel.track("Receive Push Notification", jsonObject);
+                mixpanel.flush();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
 
     public void showOverlay() {
         mOverlayView = LayoutInflater.from(this).inflate(R.layout.alert_layout, null);
