@@ -199,7 +199,7 @@ public class RNPushNotificationListenerService extends FirebaseMessagingService 
         mOverlayView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                String activityToStart = "com.safary.MainActivity";
+                String activityToStart = "com.foodbit.MainActivity";
                 try {
                     Class<?> c = Class.forName(activityToStart);
                     Intent intent = new Intent(getApplicationContext(), c);
