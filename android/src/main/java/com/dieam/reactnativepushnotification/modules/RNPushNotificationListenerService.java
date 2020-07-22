@@ -3,7 +3,9 @@ package com.dieam.reactnativepushnotification.modules;
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningAppProcessInfo;
 import android.app.Application;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.PixelFormat;
@@ -42,19 +44,12 @@ import static com.dieam.reactnativepushnotification.modules.RNPushNotification.L
 
 public class RNPushNotificationListenerService extends FirebaseMessagingService {
     private WindowManager mWindowManager;
-    private View mOverlayView;
+    private static View mOverlayView;
     private MediaPlayer mp;
-
+    //    private SharedPreferences sharedPref = getSharedPreferences(getPackageName(), Context.MODE_PRIVATE);
     @Override
     public void onMessageReceived(RemoteMessage message) {
         Log.i("PN", "onMessageReceived");
-        boolean showOverlay = false;
-        if ((Build.VERSION.SDK_INT < Build.VERSION_CODES.M
-                || Settings.canDrawOverlays(this)) && !isApplicationInForeground() ) {
-            showOverlay();
-            playSound();
-            showOverlay = true;
-        }
         RemoteMessage.Notification remoteNotification = message.getNotification();
 
 
@@ -69,6 +64,13 @@ public class RNPushNotificationListenerService extends FirebaseMessagingService 
 
         for(Map.Entry<String, String> entry : message.getData().entrySet()) {
             bundle.putString(entry.getKey(), entry.getValue());
+        }
+
+        boolean showOverlay = false;
+        if (shouldShowOverlay(bundle)) {
+            showOverlay();
+            playSound();
+            showOverlay = true;
         }
 
         // Log event
@@ -128,6 +130,14 @@ public class RNPushNotificationListenerService extends FirebaseMessagingService 
                 }
             }
         });
+    }
+
+    public boolean shouldShowOverlay(Bundle bundle) {
+        String showOverlay = bundle.getString("showOverlayAlert");
+        return (Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                || Settings.canDrawOverlays(this)) && !isApplicationInForeground()
+                && showOverlay != null && showOverlay.equalsIgnoreCase("true")
+                && mOverlayView == null;
     }
 
     public void logAnalytics(Bundle notificationBundle, boolean showOverlay) {
@@ -207,10 +217,16 @@ public class RNPushNotificationListenerService extends FirebaseMessagingService 
                     startActivity(intent);
                     mWindowManager.removeView(mOverlayView);
                     stopPlaySound();
+                    mOverlayView = null;
+
+//                    sharedPref.edit().putBoolean("isShowingOverlay", false).commit();
                 } catch (ClassNotFoundException ignored) {
                 }
             }
         });
+
+        // Store in storage
+//        sharedPref.edit().putBoolean("isShowingOverlay", true).commit();
 
     }
 
